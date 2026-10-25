@@ -113,6 +113,8 @@
             #arena-group.sp-title-keep .ui-hud-toolbar button.ui-hud-action:disabled { opacity: 0.4; }
             .sp-extras { margin-top: 8dp; padding-top: 8dp; border-top: 1dp rgb(120, 120, 120); }
             .sp-extras .ui-choice-row { display: block; margin: 4dp 0; }
+            #arena-group.sp-icons-off .sp-job-badge { display: none; }
+            #arena-group.sp-icons-off .group-member.sp-has-job { padding-left: 0; }
         </style>
         <script>
 -- Job icons for group members (add-on).
@@ -299,6 +301,38 @@ pcall(function()
     apply()
 end)
         </script>
+    <script>
+-- Add-on switch: turned on and off in Options > UI > Add-ons (Options Extras),
+-- saved in sp_addons.txt. Everything is on until it is switched off there.
+pcall(function()
+    if not SP_ADDON_ON then
+        SP_ADDON_ON = function(key)
+            if type(SP_ADDON_FLAGS) ~= 'table' then
+                SP_ADDON_FLAGS = {}
+                pcall(function()
+                    local f = io.open('sp_addons.txt', 'r')
+                    if not f then return end
+                    for line in f:lines() do
+                        local k, v = line:match('^%s*([%w_]+)%s*=%s*(%d)')
+                        if k then SP_ADDON_FLAGS[k] = (v == '1') end
+                    end
+                    f:close()
+                end)
+            end
+            return SP_ADDON_FLAGS[key] ~= false
+        end
+    end
+    SP_ADDON_APPLY = SP_ADDON_APPLY or {}
+    local doc = document
+    for _, pair in ipairs({{'class_icons', 'sp-icons-off'}}) do
+        local key, cls = pair[1], pair[2]
+        local function apply() pcall(function() doc:SetClass(cls, not SP_ADDON_ON(key)) end) end
+        apply()
+        SP_ADDON_APPLY[key] = SP_ADDON_APPLY[key] or {}
+        table.insert(SP_ADDON_APPLY[key], apply)
+    end
+end)
+    </script>
     </head>
     <body template="window-fixed-size" id="arena-group" data-model="arena-group" data-class-collapsed="collapsed">
         <div id="sp-job-timer"></div>

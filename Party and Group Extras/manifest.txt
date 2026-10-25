@@ -1,6 +1,6 @@
 ; Update list for Party and Group Extras. Upload this next to mod.ini and the files folder.
-version=1.6
-0e518024b60dd1e78f9ee44f39aeac3eb78fc9d5|mod.ini
-933039f16cc61cf656d799d3f9be2b548fc8ad43|files/Data/ui/themes/rose/game/arena_group.html
-81d38659b4ed70cd176aff6b75cb1a762cc8d710|files/Data/ui/themes/rose/game/party.html
+version=1.7
+dde022c1e2b839c84eec958e6839f47018662cc7|mod.ini
+80894002f485daebb62e77acbb909f556fbcd115|files/Data/ui/themes/rose/game/arena_group.html
+3eb837f14b1d939c13dda2c32f11ce3da9e57f6b|files/Data/ui/themes/rose/game/party.html
 4aee78779ae6cde94ae9471fad482227f4a2cacb|files/Data/ui/themes/rose/game/party_options.html

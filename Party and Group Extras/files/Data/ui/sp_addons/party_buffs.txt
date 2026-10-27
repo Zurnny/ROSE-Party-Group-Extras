@@ -1,0 +1,2 @@
+party_buffs
+; Marks the Party Buff Options add-on as installed. Removed again with the add-on.

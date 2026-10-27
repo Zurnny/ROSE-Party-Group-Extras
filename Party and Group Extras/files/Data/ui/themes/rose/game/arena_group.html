@@ -118,6 +118,8 @@
             .sp-extras .ui-choice-row { display: block; margin: 4dp 0; }
             #arena-group.sp-icons-off .sp-job-badge { display: none; }
             #arena-group.sp-icons-off .group-member.sp-has-job { padding-left: 0; }
+            /* Party Buff Options not installed or switched off: no buff settings in the gear panel */
+            #arena-group.sp-pbuffs-off .sp-extras { display: none; }
 @keyframes sp-switch-tick-a { from { opacity: 0; } to { opacity: 0; } }
 @keyframes sp-switch-tick-b { from { opacity: 0; } to { opacity: 0; } }
 #sp-switch-timer { position: absolute; width: 1dp; height: 1dp; opacity: 0; pointer-events: none; animation: 2s sp-switch-tick-a; }
@@ -183,6 +185,8 @@ local ok, err = pcall(function()
     local added, flip = false, false
     local function add_sources()
         if added then return end
+        -- only while the Class Icons add-on is installed (this window is shared with Party Buff Options)
+        if SP_ADDON_INSTALLED and not SP_ADDON_INSTALLED('class_icons') then return end
         local slot = document:GetElementById('sp-job-source-slot')
         if not slot then return end
         added = true
@@ -194,6 +198,7 @@ local ok, err = pcall(function()
     end
 
     local function update()
+        if not added then return end
         local by_tag, self_job = {}, nil
         each(document:QuerySelectorAll('.sp-job-source span'), function(s)
             local job = job_name(s:GetAttribute('sp-job'))
@@ -267,13 +272,18 @@ pcall(function()
             f:close()
         end)
     end
+    -- on = the Party Buff Options add-on is installed and switched on
+    local state = true
     local function apply()
         local body = el('arena-group')
         if not body then return end
-        body:SetClass('sp-buffs-off', cfg.buffs == 0)
-        body:SetClass('sp-title-keep', cfg.keep == 1)
-        for s = 50, 200, 10 do body:SetClass('sp-buff-' .. s, cfg.size == s) end
+        body:SetClass('sp-buffs-off', state and cfg.buffs == 0)
+        body:SetClass('sp-title-keep', state and cfg.keep == 1)
+        for s = 50, 200, 10 do body:SetClass('sp-buff-' .. s, state and cfg.size == s) end
     end
+    -- called by the add-on switch script (end of <head>) every 2 seconds
+    SP_ADDON_HOOK = SP_ADDON_HOOK or {}
+    SP_ADDON_HOOK['party_buffs@arena-group'] = function(on) state = on; apply() end
     local function changed() save(); apply() end
 
     -- Controls in the attached Group Options panel (gear button)
@@ -308,60 +318,60 @@ pcall(function()
 end)
         </script>
     <script>
--- Add-on switch: turned on and off in Options > UI > Add-ons (Options Extras).
+-- Add-on switches (the same script in every add-on window).
 -- SP_ADDON_SWITCH class_icons
--- When this window loads it lists itself in sp_addons_list.txt, which is how
--- Options knows to show its switch. The switch itself is saved in
--- sp_addons.txt; this window reads it fresh every 2 seconds, so a change in
--- Options shows here within about 2 seconds. Everything is on by default.
+-- SP_ADDON_SWITCH party_buffs
+-- An add-on counts as installed while its marker file
+-- Data/ui/sp_addons/<key>.txt exists. The launcher copies the marker in with
+-- the add-on and takes it out again with it, so a window that several add-ons
+-- share only runs the parts of the add-ons that are installed.
+-- The on/off switches are in Options > UI > Add-ons and are saved in
+-- sp_addons.txt (the Ice UI uses the same file; nobody removes anyone else's
+-- lines). This window reads it every 2 seconds. Everything is on by default.
 pcall(function()
-    local LIST, FLAGS = 'sp_addons_list.txt', 'sp_addons.txt'
-    -- key, class put on this window while it is switched off ('' = none), switch text, add-on
-    local MINE = {{'class_icons', 'sp-icons-off', 'Class icons in party and group', 'Party and Group Extras'}}
-    SP_ADDON_ON = function(key)
-        local on = true
+    local BODY = 'arena-group'
+    -- key, class put on this window while that add-on is off or not installed ('' = none)
+    local MINE = {{'class_icons', 'sp-icons-off'}, {'party_buffs', 'sp-pbuffs-off'}}
+    local installed = {}
+    SP_ADDON_INSTALLED = function(key)
+        if installed[key] == nil then
+            installed[key] = true      -- if the game won't let the UI read files, assume installed
+            pcall(function()
+                local f = io.open('Data/ui/sp_addons/' .. key .. '.txt', 'r')
+                if f then f:close() else installed[key] = false end
+            end)
+        end
+        return installed[key]
+    end
+    local flags = {}
+    local function read_flags()
+        flags = {}
         pcall(function()
-            local f = io.open(FLAGS, 'r')
+            local f = io.open('sp_addons.txt', 'r')
             if not f then return end
             for line in f:lines() do
                 local k, v = line:match('^%s*([%w_]+)%s*=%s*(%d)')
-                if k == key then on = (v == '1') end
+                if k then flags[k] = v end
             end
             f:close()
         end)
-        return on
     end
-    -- list myself (key|switch text|add-on), keeping everyone else's lines
-    pcall(function()
-        local lines, have, changed = {}, {}, false
-        local f = io.open(LIST, 'r')
-        if f then
-            for line in f:lines() do
-                local k = line:match('^([%w_]+)|')
-                if k then lines[#lines + 1] = line; have[k] = line end
-            end
-            f:close()
-        end
-        for _, m in ipairs(MINE) do
-            local want = m[1] .. '|' .. m[3] .. '|' .. m[4]
-            if have[m[1]] ~= want then
-                changed = true
-                local put = false
-                for i, line in ipairs(lines) do
-                    if line:match('^([%w_]+)|') == m[1] then lines[i] = want; put = true end
-                end
-                if not put then lines[#lines + 1] = want end
-            end
-        end
-        if changed then
-            local w = io.open(LIST, 'w')
-            if w then w:write(table.concat(lines, '\n'), '\n'); w:close() end
-        end
-    end)
+    -- SP_ADDON_ON(key): installed and not switched off. Reads the switches fresh
+    -- unless called with fresh == false.
+    SP_ADDON_ON = function(key, fresh)
+        if not SP_ADDON_INSTALLED(key) then return false end
+        if fresh ~= false then read_flags() end
+        return flags[key] ~= '0'
+    end
     local doc = document
     local function apply()
+        read_flags()
         for _, m in ipairs(MINE) do
-            if m[2] ~= '' then pcall(function() (doc:GetElementById('arena-group') or doc):SetClass(m[2], not SP_ADDON_ON(m[1])) end) end
+            local on = SP_ADDON_ON(m[1], false)
+            if m[2] ~= '' then pcall(function() (doc:GetElementById(BODY) or doc):SetClass(m[2], not on) end) end
+            -- a script in this window can register SP_ADDON_HOOK['<key>@<body id>'] = function(on) ... end
+            local hook = SP_ADDON_HOOK and SP_ADDON_HOOK[m[1] .. '@' .. BODY]
+            if hook then pcall(hook, on) end
         end
     end
     apply()

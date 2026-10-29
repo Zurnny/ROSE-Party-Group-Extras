@@ -30,8 +30,10 @@ theme uses the same file; both keep each other's settings.
 
 ## Files it changes
 - `Data/ui/themes/rose/game/arena_group.html`
+- `Data/ui/themes/rose/game/clan.html`
 - `Data/ui/themes/rose/game/options_bgfx.html`
 - `Data/ui/themes/rose/game/party.html`
+- `Data/ui/themes/rose/game/party_finder.html`
 - `Data/ui/themes/rose/game/party_options.html`
 - `Data/ui/sp_addons/class_icons.txt` (marker)
 - `Data/ui/sp_addons/party_buffs.txt` (marker)
